@@ -7,8 +7,8 @@ const PORT = process.env.PORT || 3000;
 
 const DB_URL = 'https://our-nation-22b63-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-// 서비스 계정 JSON (환경변수로 설정)
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+// 서비스 계정 JSON (base64 인코딩된 환경변수)
+const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8'));
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 app.get('/ping', (req, res) => res.send('alive'));
