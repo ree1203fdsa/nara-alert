@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00D4FF">
+<title>우리들의 나라 알림</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<style>
+/* ── 토큰 ── */
+:root {
+  --bg:         #0A0E1A;
+  --surface:    #111827;
+  --card:       #1C2333;
+  --card-hi:    #232D42;
+  --border:     #2A3550;
+  --accent:     #00D4FF;
+  --accent-dim: rgba(0,212,255,.12);
+  --accent-glow:rgba(0,212,255,.28);
+  --purple:     #7C3AED;
+  --purple-dim: rgba(124,58,237,.15);
+  --purple-glow:rgba(124,58,237,.3);
+  --green:      #10B981;
+  --green-dim:  rgba(16,185,129,.12);
+  --orange:     #F59E0B;
+  --orange-dim: rgba(245,158,11,.12);
+  --red:        #EF4444;
+  --red-dim:    rgba(239,68,68,.12);
+  --text:       #F1F5F9;
+  --sub:        #94A3B8;
+  --muted:      #64748B;
+  --r:          12px;
+  --r-sm:       8px;
+}
+
+* { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Apple SD Gothic Neo','Noto Sans KR','Segoe UI',sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ════════════════════════════
+   로그인 화면
+════════════════════════════ */
+#loginScreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px 48px;
+  min-height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 배경 글로우 */
+#loginScreen::before,
+#loginScreen::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+#loginScreen::before {
+  width: 280px; height: 280px;
+  background: var(--purple-glow);
+  top: -60px; right: -60px;
+  opacity: .5;
+}
+#loginScreen::after {
+  width: 220px; height: 220px;
+  background: var(--accent-glow);
+  bottom: 40px; left: -40px;
+  opacity: .35;
+}
+
+.login-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* 로고 */
+.login-logo {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 0 32px var(--accent-glow), 0 0 64px var(--purple-glow);
+  margin-bottom: 20px;
+  animation: floatLogo 3s ease-in-out infinite;
+}
+@keyframes floatLogo {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.4px;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.login-title span { color: var(--accent); }
+
+.login-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+/* 카드 */
+.login-card {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.4);
+}
+
+.field-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.field-wrap { position: relative; }
+
+.field-wrap input {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 15px;
+  padding: 12px 14px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none;
+}
+.field-wrap input::placeholder { color: var(--muted); }
+.field-wrap input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.field-wrap input.error-field {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-dim);
+}
+
+/* 비밀번호 눈 버튼 */
+.eye-btn {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+/* 오류 메시지 */
+.err-msg {
+  font-size: 12px;
+  color: var(--red);
+  padding: 10px 14px;
+  background: var(--red-dim);
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: var(--r-sm);
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.err-msg.show { display: flex; }
+
+/* 로그인 버튼 */
+.btn-login {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), #0099CC);
+  color: #000;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 14px;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: .3px;
+  transition: opacity .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-login:active { opacity: .8; transform: scale(.98); }
+.btn-login:disabled { opacity: .5; cursor: not-allowed; }
+
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(0,0,0,.3);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 구글 안내 */
+.google-info {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 12px 0 0;
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+}
+.google-info span { color: var(--sub); }
+
+/* ════════════════════════════
+   메인 앱
+════════════════════════════ */
+#appScreen { display: none; flex-direction: column; flex: 1; }
+
+/* ── 헤더 ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,14,26,.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.header-top {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 0 10px var(--accent-glow);
+  flex-shrink: 0;
+}
+.logo-text { font-size: 14px; font-weight: 700; letter-spacing: -.3px; }
+.logo-text span { color: var(--accent); }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.status-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--muted);
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background .3s;
+}
+.dot.on  { background: var(--green); box-shadow: 0 0 5px var(--green); animation: pulse 2s infinite; }
+.dot.err { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* 유저 칩 + 로그아웃 */
+.user-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,212,255,.25);
+  border-radius: 20px;
+  padding: 5px 10px 5px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: default;
+  max-width: 130px;
+  overflow: hidden;
+}
+.user-chip .av {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.user-chip .name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-logout:active { background: var(--surface); }
+
+/* ── 피드 ── */
+main { flex: 1; padding: 10px 16px 88px; }
+
+.section-lbl {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .8px; text-transform: uppercase;
+  color: var(--muted); margin: 12px 0 8px;
+}
+
+.feed { display: flex; flex-direction: column; gap: 8px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 13px 14px;
+  display: flex; gap: 12px; align-items: flex-start;
+  animation: slideIn .22s ease;
+  position: relative; overflow: hidden;
+  transition: background .15s;
+}
+.card.new { background: var(--card-hi); }
+.card.new::before {
+  content: '';
+  position: absolute; left:0; top:0; bottom:0;
+  width: 3px; border-radius: 3px 0 0 3px;
+  background: var(--accent);
+}
+.card:active { background: var(--card-hi); }
+@keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+.badge {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.cbody { flex: 1; min-width: 0; }
+.ctitle { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.cmsg   { font-size: 13px; color: var(--sub); line-height: 1.45; overflow-wrap: break-word; }
+.foot   { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.ctime  { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag    { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; letter-spacing: .4px; text-transform: uppercase; }
+
+.t-info   .badge { background: var(--accent-dim); }
+.t-warn   .badge { background: var(--orange-dim); }
+.t-error  .badge { background: var(--red-dim); }
+.t-event  .badge { background: var(--purple-dim); }
+.t-system .badge { background: var(--green-dim); }
+
+.t-info   .tag { background: var(--accent-dim);  color: var(--accent); }
+.t-warn   .tag { background: var(--orange-dim);  color: var(--orange); }
+.t-error  .tag { background: var(--red-dim);     color: var(--red); }
+.t-event  .tag { background: var(--purple-dim);  color: #A78BFA; }
+.t-system .tag { background: var(--green-dim);   color: var(--green); }
+
+/* 빈 상태 */
+.empty {
+  display: flex; flex-direction: column;
+  align-items: center; padding: 60px 20px;
+  text-align: center; gap: 10px; color: var(--muted);
+}
+.empty .ico { font-size: 48px; opacity: .3; }
+.empty .lbl { font-size: 15px; font-weight: 600; color: var(--sub); }
+.empty .sub { font-size: 13px; line-height: 1.5; }
+
+/* ── 하단 바 ── */
+.bottom {
+  position: fixed; bottom:0; left:0; right:0;
+  background: rgba(10,14,26,.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  z-index: 100;
+}
+.cnt { font-size: 12px; color: var(--muted); flex: 1; }
+.cnt strong { font-variant-numeric: tabular-nums; }
+.btn-clr {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); font-size: 12px; padding: 7px 14px;
+  border-radius: 8px; cursor: pointer; font-family: inherit;
+}
+.btn-clr:active { background: var(--surface); }
+
+/* ── 토스트 ── */
+.toast {
+  position: fixed; top: -56px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent); color: #000;
+  font-size: 13px; font-weight: 700;
+  padding: 10px 18px; border-radius: 24px;
+  z-index: 300; white-space: nowrap;
+  transition: top .3s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 4px 20px var(--accent-glow);
+  pointer-events: none;
+}
+.toast.show { top: 68px; }
+
+/* 플래시 */
+.notif-flash {
+  position: fixed; inset:0;
+  background: var(--accent); opacity:0;
+  pointer-events: none; z-index: 400;
+}
+.notif-flash.go { animation: flashAnim .4s forwards; }
+@keyframes flashAnim { 0%{opacity:.12} 100%{opacity:0} }
+
+/* ════════════════════════════
+   상세 보기 바텀시트
+════════════════════════════ */
+.sheet-overlay {
+  position: fixed; inset:0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.sheet-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 501;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 0 0 calc(24px + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,1,.4,1);
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+}
+.sheet.open { transform: translateY(0); }
+
+/* 핸들 */
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+
+/* 시트 헤더 */
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sheet-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.sheet-head-text { flex: 1; min-width: 0; }
+
+.sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.sheet-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+
+.sheet-tag {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 5px;
+  letter-spacing: .4px; text-transform: uppercase;
+}
+
+/* 시트 바디 */
+.sheet-body {
+  padding: 20px 20px 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.sheet-section-lbl {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .8px; text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.sheet-msg {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.7;
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.sheet-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.info-cell {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+
+.info-cell .lbl {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .6px; text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.info-cell .val {
+  font-size: 13px; font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 자세히 보기 버튼 (카드 내) */
+.card-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: .2px;
+  transition: opacity .15s;
+}
+.card-detail-btn:active { opacity: .7; }
+</style>
+</head>
+<body>
+
+<!-- ════════ 로그인 화면 ════════ -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-logo">🗡️</div>
+    <div class="login-title">우리들의 <span>나라</span></div>
+    <div class="login-sub">게임 알림을 받으려면 로그인하세요</div>
+
+    <div class="login-card">
+      <!-- 유저명 -->
+      <div>
+        <div class="field-lbl">유저명</div>
+        <div class="field-wrap">
+          <input type="text" id="loginUser" placeholder="게임 내 유저명 입력"
+                 autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+      </div>
+
+      <!-- 비밀번호 -->
+      <div id="pwBlock">
+        <div class="field-lbl">비밀번호</div>
+        <div class="field-wrap">
+          <input type="password" id="loginPw" placeholder="비밀번호 입력" autocomplete="current-password">
+          <button class="eye-btn" id="eyeBtn" type="button">👁</button>
+        </div>
+      </div>
+
+      <!-- 오류 -->
+      <div class="err-msg" id="errMsg">
+        <span>⚠️</span>
+        <span id="errTxt"></span>
+      </div>
+
+      <!-- 로그인 버튼 -->
+      <button class="btn-login" id="btnLogin">
+        <div class="spin" id="loginSpin"></div>
+        <span id="loginBtnTxt">로그인</span>
+      </button>
+
+      <!-- 구글 계정 안내 -->
+      <div class="google-info">
+        구글 계정(<span>구글_이름</span>)은<br>
+        비밀번호란을 비워두고 유저명만 입력하세요
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 메인 앱 ════════ -->
+<div id="appScreen">
+  <header>
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">🗡️</div>
+        <div class="logo-text">우리들의 <span>나라</span></div>
+      </div>
+      <div class="header-right">
+        <div class="status-row">
+          <div class="dot" id="dot"></div>
+          <span id="statusTxt">연결 중</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div class="user-chip" id="userChip">
+        <div class="av" id="userAv"></div>
+        <div class="name" id="userNameDisp"></div>
+      </div>
+      <button class="btn-logout" id="btnLogout">로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="empty" id="empty">
+      <div class="ico">🔔</div>
+      <div class="lbl">아직 알림이 없어요</div>
+      <div class="sub">새 알림이 오면 여기에 표시돼요</div>
+    </div>
+    <div class="section-lbl" id="secLbl" style="display:none">최근 알림</div>
+    <div class="feed" id="feed"></div>
+  </main>
+
+  <div class="bottom">
+    <div class="cnt" id="cnt">알림 <strong>0</strong>개</div>
+    <button class="btn-clr" id="btnClr">지우기</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="notif-flash" id="flash"></div>
+
+<!-- ════════ 상세 바텀시트 ════════ -->
+<div class="sheet-overlay" id="sheetOverlay"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-icon" id="sheetIcon"></div>
+    <div class="sheet-head-text">
+      <div class="sheet-title" id="sheetTitle"></div>
+      <div class="sheet-meta" id="sheetMeta"></div>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="sheet-section-lbl">내용</div>
+    <div class="sheet-msg" id="sheetMsg"></div>
+    <div class="sheet-info-grid" id="sheetGrid"></div>
+  </div>
+</div>
+
+<script>
+const DB = 'https://our-nation-22b63-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+// ── 환경 감지 ──
+const isAndroid = /Android/i.test(navigator.userAgent);
+
+// ── 로그인 상태 ──
+let currentUser = null;
+let esAll = null, esUser = null;
+let notifs = [];
+let knownKeys = new Set();
+
+// ════════════════════════════
+//  세션 저장 / 복원 (localStorage + 쿠키 이중 저장)
+// ════════════════════════════
+
+function saveSession(user) {
+  const json = JSON.stringify(user);
+  // localStorage
+  try { localStorage.setItem('nara_user', json); } catch {}
+  // 쿠키 (Android WebView 재시작에도 유지, 365일)
+  const exp = new Date();
+  exp.setFullYear(exp.getFullYear() + 1);
+  document.cookie = `nara_user=${encodeURIComponent(json)};expires=${exp.toUTCString()};path=/;SameSite=Lax`;
+}
+
+function loadSession() {
+  // localStorage 우선
+  try {
+    const v = localStorage.getItem('nara_user');
+    if (v) return JSON.parse(v);
+  } catch {}
+  // 쿠키 폴백
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)nara_user=([^;]*)/);
+    if (match) return JSON.parse(decodeURIComponent(match[1]));
+  } catch {}
+  return null;
+}
+
+function clearSession() {
+  try { localStorage.removeItem('nara_user'); } catch {}
+  document.cookie = 'nara_user=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+}
+
+// 저장된 세션 복원
+function restoreSession() {
+  const saved = loadSession();
+  if (saved) {
+    currentUser = saved;
+    enterApp();
+    setupFCM(saved.username);
+    return true;
+  }
+  return false;
+}
+
+// 유저명 입력 → 구글 계정이면 비번 칸 숨김
+document.getElementById('loginUser').addEventListener('input', () => {
+  const v = document.getElementById('loginUser').value.trim();
+  const isGoogle = v.startsWith('구글_') || v.startsWith('구글사용자');
+  document.getElementById('pwBlock').style.display = isGoogle ? 'none' : 'block';
+  clearErr();
+});
+
+// 눈 버튼 (비밀번호 표시/숨김)
+document.getElementById('eyeBtn').addEventListener('click', () => {
+  const inp = document.getElementById('loginPw');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  document.getElementById('eyeBtn').textContent = show ? '🙈' : '👁';
+});
+
+// Enter 로그인
+['loginUser','loginPw'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+document.getElementById('btnLogin').addEventListener('click', doLogin);
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPw').value;
+
+  if (!username) { showErr('유저명을 입력해 주세요'); return; }
+
+  setLoginLoading(true);
+  clearErr();
+
+  try {
+    // Firebase에서 유저 데이터 가져오기
+    const res = await fetch(`${DB}/users/${encodeURIComponent(username)}.json`);
+    if (!res.ok) throw new Error('네트워크 오류');
+    const data = await res.json();
+
+    if (!data) {
+      showErr('존재하지 않는 유저입니다');
+      setLoginLoading(false);
+      return;
+    }
+
+    const storedPw = data.password || '';
+
+    // 구글 계정
+    if (storedPw === 'GOOGLE_AUTH_USER') {
+      // 구글 계정은 비밀번호 없이 유저명만으로 로그인
+      loginSuccess(username, data);
+      return;
+    }
+
+    // 일반 계정 — 비밀번호 확인
+    if (!password) {
+      showErr('비밀번호를 입력해 주세요');
+      setLoginLoading(false);
+      return;
+    }
+
+    if (password !== storedPw) {
+      showErr('비밀번호가 틀렸습니다');
+      document.getElementById('loginPw').classList.add('error-field');
+      setLoginLoading(false);
+      return;
+    }
+
+    loginSuccess(username, data);
+
+  } catch (e) {
+    showErr('서버 연결 오류. 다시 시도해 주세요');
+    setLoginLoading(false);
+  }
+}
+
+function loginSuccess(username, userData) {
+  currentUser = { username, level: userData.lv || userData.level || 1 };
+  saveSession(currentUser);
+  setLoginLoading(false);
+  enterApp();
+  setupFCM(username);
+}
+
+function setLoginLoading(on) {
+  document.getElementById('loginSpin').style.display = on ? 'block' : 'none';
+  document.getElementById('loginBtnTxt').textContent = on ? '확인 중...' : '로그인';
+  document.getElementById('btnLogin').disabled = on;
+}
+
+function showErr(msg) {
+  document.getElementById('errTxt').textContent = msg;
+  document.getElementById('errMsg').classList.add('show');
+}
+function clearErr() {
+  document.getElementById('errMsg').classList.remove('show');
+  document.getElementById('loginPw').classList.remove('error-field');
+  document.getElementById('loginUser').classList.remove('error-field');
+}
+
+// ════════════════════════════
+//  앱 진입 / 로그아웃
+// ════════════════════════════
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'flex';
+
+  // 헤더 유저 정보
+  const name = currentUser.username;
+  document.getElementById('userNameDisp').textContent = name;
+  document.getElementById('userAv').textContent = name.charAt(0).toUpperCase();
+
+  startListening();
+}
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+  if (!confirm('로그아웃 할까요?')) return;
+  logout();
+});
+
+function logout() {
+  stopListening();
+  currentUser = null;
+  notifs = [];
+  knownKeys = new Set();
+  clearSession();
+
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPw').value = '';
+  document.getElementById('pwBlock').style.display = 'block';
+  renderFeed();
+}
+
+// ════════════════════════════
+//  Firebase 실시간 구독
+// ════════════════════════════
+function startListening() {
+  stopListening();
+  notifs = [];
+  knownKeys = new Set();
+  renderFeed();
+  setStatus('connecting');
+
+  // ALL 채널
+  esAll = new EventSource(`${DB}/notifications/ALL.json`);
+  esAll.addEventListener('put',   e => onFbEvent(e, 'ALL'));
+  esAll.addEventListener('patch', e => onFbEvent(e, 'ALL'));
+  esAll.onerror = () => setStatus('error');
+  esAll.onopen  = () => setStatus('on');
+
+  // 개인 채널
+  const enc = encodeURIComponent(currentUser.username);
+  esUser = new EventSource(`${DB}/notifications/${enc}.json`);
+  esUser.addEventListener('put',   e => onFbEvent(e, currentUser.username));
+  esUser.addEventListener('patch', e => onFbEvent(e, currentUser.username));
+}
+
+function stopListening() {
+  esAll?.close();  esAll  = null;
+  esUser?.close(); esUser = null;
+}
+
+function onFbEvent(e, channel) {
+  let data;
+  try { data = JSON.parse(e.data); } catch { return; }
+  if (!data) return;
+
+  const path    = data.path || '/';
+  const payload = data.data;
+
+  if (path === '/') {
+    // 초기 전체 로드 — 화면 표시만
+    if (payload && typeof payload === 'object') {
+      for (const key of Object.keys(payload)) {
+        const n = payload[key];
+        if (!n || typeof n !== 'object') continue;
+        knownKeys.add(key);
+        notifs.push({ ...n, _key: key, _ch: channel });
+      }
+      notifs.sort((a, b) => (b.t || 0) - (a.t || 0));
+      renderFeed();
+      updateCnt();
+    }
+  } else {
+    // 새 알림
+    const key = path.replace(/^\//, '');
+    if (!key || knownKeys.has(key) || !payload || typeof payload !== 'object') return;
+    knownKeys.add(key);
+    addNew({ ...payload, _key: key, _ch: channel });
+  }
+}
+
+function addNew(n) {
+  notifs.unshift(n);
+  renderFeed();
+  updateCnt();
+  toast(`🔔 ${n.title || '새 알림'}`);
+  triggerAlert(n);
+}
+
+function triggerAlert(n) {
+  const title = n.title || '우리들의 나라';
+  const body  = n.msg   || '';
+
+  // 스윙투앱 JS 브릿지
+  if (window.Android?.showNotification) {
+    try { window.Android.showNotification(title, body); return; } catch {}
+  }
+  if (window.SwingApp?.pushNotification) {
+    try { window.SwingApp.pushNotification(title, body); return; } catch {}
+  }
+
+  // 일반 브라우저 알림
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, tag: `nara-${Date.now()}` });
+    return;
+  }
+
+  // 폴백 — 플래시 + 진동
+  flashScreen();
+  if (isAndroid && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function flashScreen() {
+  const f = document.getElementById('flash');
+  f.classList.remove('go');
+  void f.offsetWidth;
+  f.classList.add('go');
+}
+
+// ════════════════════════════
+//  렌더링
+// ════════════════════════════
+function renderFeed() {
+  const feed  = document.getElementById('feed');
+  const empty = document.getElementById('empty');
+  const lbl   = document.getElementById('secLbl');
+
+  if (notifs.length === 0) {
+    empty.style.display = 'flex';
+    lbl.style.display   = 'none';
+    feed.innerHTML      = '';
+    return;
+  }
+  empty.style.display = 'none';
+  lbl.style.display   = 'block';
+  feed.innerHTML      = '';
+  for (const n of notifs) feed.appendChild(makeCard(n));
+}
+
+function makeCard(n) {
+  const div  = document.createElement('div');
+  const type = (n.type || 'info').toLowerCase();
+  div.className = `card t-${type}${n.read === false ? ' new' : ''}`;
+  div.innerHTML = `
+    <div class="badge">${typeEmoji(type)}</div>
+    <div class="cbody">
+      <div class="ctitle">${esc(n.title || '알림')}</div>
+      <div class="cmsg" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(n.msg || '')}</div>
+      <div class="foot">
+        <span class="ctime">${fmtTime(n.t)}</span>
+        <span class="tag">${typeLabel(type)}</span>
+        ${n._ch && n._ch !== 'ALL'
+          ? `<span class="tag" style="background:var(--accent-dim);color:var(--accent)">개인</span>`
+          : ''}
+        <button class="card-detail-btn">자세히 보기 ›</button>
+      </div>
+    </div>`;
+  div.querySelector('.card-detail-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    openSheet(n);
+  });
+  return div;
+}
+
+// ── 바텀시트 열기/닫기 ──
+function openSheet(n) {
+  const type = (n.type || 'info').toLowerCase();
+
+  // 아이콘
+  const icon = document.getElementById('sheetIcon');
+  icon.textContent = typeEmoji(type);
+  icon.style.cssText = `background:var(--${typeColor(type)}-dim)`;
+
+  // 제목
+  document.getElementById('sheetTitle').textContent = n.title || '알림';
+
+  // 메타 태그
+  const meta = document.getElementById('sheetMeta');
+  meta.innerHTML = `
+    <span class="sheet-tag" style="background:var(--${typeColor(type)}-dim);color:var(--${typeColor(type)})">${typeLabel(type)}</span>
+    ${n._ch && n._ch !== 'ALL' ? `<span class="sheet-tag" style="background:var(--accent-dim);color:var(--accent)">개인 알림</span>` : '<span class="sheet-tag" style="background:var(--border);color:var(--sub)">전체 알림</span>'}
+  `;
+
+  // 본문
+  document.getElementById('sheetMsg').textContent = n.msg || '(내용 없음)';
+
+  // 정보 그리드
+  const grid = document.getElementById('sheetGrid');
+  const timeStr = n.t ? new Date(n.t).toLocaleString('ko-KR', {
+    month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  }) : '-';
+  grid.innerHTML = `
+    <div class="info-cell">
+      <div class="lbl">수신 시각</div>
+      <div class="val">${timeStr}</div>
+    </div>
+    <div class="info-cell">
+      <div class="lbl">채널</div>
+      <div class="val">${esc(n._ch || 'ALL')}</div>
+    </div>
+    <div class="info-cell">
+      <div class="lbl">알림 유형</div>
+      <div class="val">${typeLabel(type)}</div>
+    </div>
+    <div class="info-cell">
+      <div class="lbl">읽음 상태</div>
+      <div class="val">${n.read === false ? '미확인' : '확인됨'}</div>
+    </div>
+  `;
+
+  document.getElementById('sheetOverlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSheet() {
+  document.getElementById('sheetOverlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('sheetOverlay').addEventListener('click', closeSheet);
+
+// 스와이프 다운으로 닫기
+(function() {
+  const sheet = document.getElementById('sheet');
+  let startY = 0, dragging = false;
+  sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; dragging = true; }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  sheet.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - startY;
+    sheet.style.transform = '';
+    if (dy > 80) closeSheet();
+    dragging = false;
+  });
+})();
+
+function typeColor(type) {
+  return { info:'accent', warn:'orange', warning:'orange', error:'red', event:'purple', system:'green' }[type] || 'accent';
+}
+
+const EMOJI = {info:'ℹ️',warn:'⚠️',warning:'⚠️',error:'❌',event:'🎉',system:'⚙️'};
+const LABEL = {info:'정보',warn:'경고',warning:'경고',error:'오류',event:'이벤트',system:'시스템'};
+function typeEmoji(t) { return EMOJI[t] || '🔔'; }
+function typeLabel(t) { return LABEL[t] || t; }
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const s = (now - d) / 1000;
+  if (s < 60)    return '방금 전';
+  if (s < 3600)  return `${Math.floor(s/60)}분 전`;
+  if (s < 86400) return `${Math.floor(s/3600)}시간 전`;
+  return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setStatus(s) {
+  document.getElementById('dot').className = 'dot' + (s==='on'?' on':s==='error'?' err':'');
+  document.getElementById('statusTxt').textContent =
+    s==='on' ? '실시간 연결됨' : s==='error' ? '연결 오류' : '연결 중...';
+}
+
+document.getElementById('btnClr').addEventListener('click', () => {
+  notifs = []; knownKeys = new Set();
+  renderFeed(); updateCnt();
+});
+
+function updateCnt() {
+  const unread = notifs.filter(n => n.read === false).length;
+  document.getElementById('cnt').innerHTML =
+    `알림 <strong>${notifs.length}</strong>개`
+    + (unread > 0 ? ` · 미확인 <strong style="color:var(--red)">${unread}</strong>` : '');
+}
+
+let tTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ════════════════════════════
+//  Firebase FCM 초기화
+// ════════════════════════════
+firebase.initializeApp({
+  apiKey:            "AIzaSyDisx3nprEfnTvp75xPO9cyBo5x39O6H2k",
+  authDomain:        "our-nation-22b63.firebaseapp.com",
+  projectId:         "our-nation-22b63",
+  storageBucket:     "our-nation-22b63.firebasestorage.app",
+  messagingSenderId: "326856301939",
+  appId:             "1:326856301939:web:456460193c219b02143906"
+});
+
+const messaging = firebase.messaging();
+
+// 서비스 워커 등록
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then(reg => console.log('[SW] 등록 완료:', reg.scope))
+    .catch(e  => console.warn('[SW] 등록 실패:', e));
+}
+
+// FCM 토큰 취득 → Firebase DB 저장
+async function setupFCM(username) {
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+
+    // ⚠️ 아래 VAPID 키는 Firebase 콘솔 → 프로젝트 설정 → 클라우드 메시징 → 웹 푸시 인증서에서 발급
+    const VAPID_KEY = 'BEEIfP_nO_QNttcWOG7UslD1Hk4sQtJkprSfvNLPxYaHm43a0LxgHIZQfBT0BrwWvMLLK5wrklmMJ2aB3apu9R4';
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+    if (!token) return;
+
+    // 토큰을 Firebase DB에 저장 (Cloud Function이 자동으로 토픽 구독)
+    await fetch(
+      `${DB}/users/${encodeURIComponent(username)}/fcm_token.json`,
+      {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(token)
+      }
+    );
+    console.log('[FCM] 토큰 저장 완료');
+  } catch (e) {
+    console.warn('[FCM] 설정 오류:', e);
+  }
+}
+
+// 앱이 열려 있을 때 푸시 수신 → 토스트로 표시
+messaging.onMessage((payload) => {
+  const title = payload.notification?.title || '우리들의 나라';
+  const body  = payload.notification?.body  || '';
+  toast(`🔔 ${title}: ${body}`);
+  flashScreen();
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+});
+
+// ── 시작 ──
+restoreSession();
+</script>
+</body>
+</html>
