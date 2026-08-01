@@ -92,7 +92,7 @@ notifEs.addEventListener('put', async (e) => {
   console.log('새 알림:', channel, notif.title);
 
   if (channel === 'all') {
-    await sendFCM(notif.title || '새 알림', notif.body || notif.message || '', 'all');
+    await sendFCM(notif.title || '새 알림', notif.body || notif.msg || notif.message || '', 'all');
   } else {
     await sendFCM('새 개인 알림', '확인하려면 앱을 열어보세요', `user_${channel}`);
   }
