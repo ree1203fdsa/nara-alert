@@ -89,13 +89,20 @@ async function processNotif(channel, notif) {
 let notifInit = false;
 const notifEs = new EventSource(`${DB_URL}/notifications.json`);
 
+// 모든 SSE 이벤트 raw 로그 (디버그)
+const _origAdd = notifEs.addEventListener.bind(notifEs);
+notifEs.onmessage = (e) => console.log('[SSE raw]', e.type, e.data?.slice?.(0, 200));
+
 // 단건 put 이벤트 (개인 알림 push)
 notifEs.addEventListener('put', async (e) => {
-  const { path, data } = JSON.parse(e.data);
+  const parsed = JSON.parse(e.data);
+  const { path, data } = parsed;
+  console.log('[SSE put] path:', path, '| data keys:', data ? Object.keys(data).slice(0,5) : null);
   if (path === '/') { notifInit = true; console.log('알림 감지 대기중...'); return; }
   if (!notifInit || !data) return;
 
   const parts = path.split('/').filter(Boolean);
+  console.log('[SSE put] parts:', parts);
   if (parts.length < 2) return;
 
   const channel = parts[0];
@@ -107,13 +114,14 @@ notifEs.addEventListener('put', async (e) => {
 
 // 다건 patch 이벤트 (전체 알림 update 배치)
 notifEs.addEventListener('patch', async (e) => {
-  const { path, data } = JSON.parse(e.data);
+  const parsed = JSON.parse(e.data);
+  const { path, data } = parsed;
+  console.log('[SSE patch] path:', path, '| data keys:', data ? Object.keys(data).slice(0,5) : null);
   if (!notifInit || !data) return;
 
   const parts = path.split('/').filter(Boolean);
 
   if (parts.length === 0) {
-    // patch at root: data = { uid: { notif_id: {...} } }
     for (const [uid, notifs] of Object.entries(data)) {
       if (typeof notifs !== 'object') continue;
       for (const notif of Object.values(notifs)) {
@@ -121,7 +129,6 @@ notifEs.addEventListener('patch', async (e) => {
       }
     }
   } else if (parts.length === 1) {
-    // patch at /uid: data = { notif_id: {...} }
     const channel = parts[0];
     for (const notif of Object.values(data)) {
       await processNotif(channel, notif);
