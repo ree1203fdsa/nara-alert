@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const DB_URL = 'https://our-nation-22b63-default-rtdb.asia-southeast1.firebasedatabase.app';
 
 const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8'));
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databaseURL: DB_URL });
 
 app.get('/ping', (req, res) => res.send('alive'));
 app.get('/', (req, res) => res.send('나라 알림 서버 동작중'));
@@ -85,56 +85,30 @@ async function processNotif(channel, notif) {
   }
 }
 
-// 새 알림 감지 → FCM 전송
-let notifInit = false;
-const notifEs = new EventSource(`${DB_URL}/notifications.json`);
+// Firebase Admin SDK로 새 알림 감지 (SSE 대신 안정적인 실시간 리스너)
+const rtdb = admin.database();
+const startTime = Date.now();
 
-// 모든 SSE 이벤트 raw 로그 (디버그)
-const _origAdd = notifEs.addEventListener.bind(notifEs);
-notifEs.onmessage = (e) => console.log('[SSE raw]', e.type, e.data?.slice?.(0, 200));
+console.log('알림 감지 대기중...');
 
-// 단건 put 이벤트 (개인 알림 push)
-notifEs.addEventListener('put', async (e) => {
-  const parsed = JSON.parse(e.data);
-  const { path, data } = parsed;
-  console.log('[SSE put] path:', path, '| data keys:', data ? Object.keys(data).slice(0,5) : null);
-  if (path === '/') { notifInit = true; console.log('알림 감지 대기중...'); return; }
-  if (!notifInit || !data) return;
+function watchUserNotifs(uid) {
+  rtdb.ref(`notifications/${uid}`)
+    .orderByChild('t')
+    .startAt(startTime)
+    .on('child_added', async (snap) => {
+      const notif = snap.val();
+      if (!notif) return;
+      await processNotif(uid, notif);
+    }, (err) => {
+      console.error(`알림 리스너 오류 (${uid}):`, err.message);
+    });
+}
 
-  const parts = path.split('/').filter(Boolean);
-  console.log('[SSE put] parts:', parts);
-  if (parts.length < 2) return;
-
-  const channel = parts[0];
-  const notif = typeof data === 'object' ? data : null;
-  if (!notif) return;
-
-  await processNotif(channel, notif);
+// notifications/ 아래 유저 경로가 추가될 때마다 리스너 등록
+rtdb.ref('notifications').on('child_added', (snap) => {
+  watchUserNotifs(snap.key);
+}, (err) => {
+  console.error('notifications 감지 오류:', err.message);
 });
 
-// 다건 patch 이벤트 (전체 알림 update 배치)
-notifEs.addEventListener('patch', async (e) => {
-  const parsed = JSON.parse(e.data);
-  const { path, data } = parsed;
-  console.log('[SSE patch] path:', path, '| data keys:', data ? Object.keys(data).slice(0,5) : null);
-  if (!notifInit || !data) return;
-
-  const parts = path.split('/').filter(Boolean);
-
-  if (parts.length === 0) {
-    for (const [uid, notifs] of Object.entries(data)) {
-      if (typeof notifs !== 'object') continue;
-      for (const notif of Object.values(notifs)) {
-        await processNotif(uid, notif);
-      }
-    }
-  } else if (parts.length === 1) {
-    const channel = parts[0];
-    for (const notif of Object.values(data)) {
-      await processNotif(channel, notif);
-    }
-  }
-});
-
-notifEs.onerror = () => console.error('알림 DB 연결 오류, 재연결중...');
 usersEs.onerror = () => console.error('유저 DB 연결 오류, 재연결중...');
