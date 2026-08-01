@@ -74,9 +74,22 @@ usersEs.addEventListener('put', async (e) => {
   }
 });
 
+// 알림 처리 공통 함수
+async function processNotif(channel, notif) {
+  if (!notif || typeof notif !== 'object') return;
+  console.log('새 알림:', channel, notif.title);
+  if (channel.toUpperCase() === 'ALL') {
+    await sendFCM(notif.title || '새 알림', notif.body || notif.msg || notif.message || '', 'all');
+  } else {
+    await sendFCM(notif.title || '새 알림', notif.body || notif.msg || notif.message || '확인하려면 앱을 열어보세요', `user_${channel}`);
+  }
+}
+
 // 새 알림 감지 → FCM 전송
 let notifInit = false;
 const notifEs = new EventSource(`${DB_URL}/notifications.json`);
+
+// 단건 put 이벤트 (개인 알림 push)
 notifEs.addEventListener('put', async (e) => {
   const { path, data } = JSON.parse(e.data);
   if (path === '/') { notifInit = true; console.log('알림 감지 대기중...'); return; }
@@ -89,12 +102,30 @@ notifEs.addEventListener('put', async (e) => {
   const notif = typeof data === 'object' ? data : null;
   if (!notif) return;
 
-  console.log('새 알림:', channel, notif.title);
+  await processNotif(channel, notif);
+});
 
-  if (channel === 'all') {
-    await sendFCM(notif.title || '새 알림', notif.body || notif.msg || notif.message || '', 'all');
-  } else {
-    await sendFCM('새 개인 알림', '확인하려면 앱을 열어보세요', `user_${channel}`);
+// 다건 patch 이벤트 (전체 알림 update 배치)
+notifEs.addEventListener('patch', async (e) => {
+  const { path, data } = JSON.parse(e.data);
+  if (!notifInit || !data) return;
+
+  const parts = path.split('/').filter(Boolean);
+
+  if (parts.length === 0) {
+    // patch at root: data = { uid: { notif_id: {...} } }
+    for (const [uid, notifs] of Object.entries(data)) {
+      if (typeof notifs !== 'object') continue;
+      for (const notif of Object.values(notifs)) {
+        await processNotif(uid, notif);
+      }
+    }
+  } else if (parts.length === 1) {
+    // patch at /uid: data = { notif_id: {...} }
+    const channel = parts[0];
+    for (const notif of Object.values(data)) {
+      await processNotif(channel, notif);
+    }
   }
 });
 
