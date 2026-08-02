@@ -11,7 +11,15 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount), databas
 
 app.get('/ping', (req, res) => res.send('alive'));
 app.get('/', (req, res) => res.send('나라 알림 서버 동작중'));
-app.listen(PORT, () => console.log(`서버 시작: 포트 ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`서버 시작: 포트 ${PORT}`);
+  // Render 무료 플랜 슬립 방지 - 14분마다 자기 자신 ping
+  setInterval(() => {
+    fetch(`https://nara-alert-worke.onrender.com/ping`)
+      .then(() => console.log('self-ping ok'))
+      .catch(e => console.error('self-ping 실패:', e.message));
+  }, 14 * 60 * 1000);
+});
 
 // FCM 토픽에 토큰 구독
 async function subscribeToken(token, username) {
