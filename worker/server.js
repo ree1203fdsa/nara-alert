@@ -18,7 +18,7 @@ app.listen(PORT, () => {
     fetch(`https://nara-alert-worke.onrender.com/ping`)
       .then(() => console.log('self-ping ok'))
       .catch(e => console.error('self-ping 실패:', e.message));
-  }, 14 * 60 * 1000);
+  }, 10 * 60 * 1000);
 });
 
 // FCM 토픽에 토큰 구독
